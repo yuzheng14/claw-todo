@@ -12,6 +12,8 @@
 
 数据表先定义完整关系，后续批次在此基础上增加业务操作。当前测试覆盖 6 路同时首次打开数据库，验证迁移仅应用一次，以及外键和 WAL 配置生效。状态机、层级和历史写入的业务保证由后续批次补齐。
 
+`tasks.creation_token` 是调用方提供的创建幂等键，与不可变的 `creation_request` 一起用于识别同一创建请求的重试。后续 Rust 模型及 JSON 字段统一使用 `creation_token`，CLI 参数使用 `--creation-token`。
+
 默认路径为用户数据目录下的 `claw-todo/todos.db`，由 `default_db_path()` 提供；调用 `Store::open(path)` 可以显式指定测试数据库。CLI 的路径参数与环境变量将在命令行批次接入。
 
 ## 验证

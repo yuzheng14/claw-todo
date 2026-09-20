@@ -12,7 +12,7 @@ CREATE TABLE tasks (
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL,
     closed_at TEXT,
-    token TEXT UNIQUE,
+    creation_token TEXT UNIQUE,
     creation_request TEXT NOT NULL CHECK (json_valid(creation_request)),
     CHECK (parent_id IS NULL OR parent_id != id),
     CHECK ((status = 'blocked' AND blocked_reason IS NOT NULL AND length(trim(blocked_reason)) > 0)
@@ -58,6 +58,6 @@ CREATE TRIGGER tasks_work_update BEFORE UPDATE OF category ON tasks
 WHEN NEW.category = 'work' AND EXISTS (SELECT 1 FROM reminders WHERE task_id = NEW.id AND channel = 'wechat')
 BEGIN SELECT RAISE(ABORT, 'work_wechat_forbidden'); END;
 
-CREATE TRIGGER tasks_creation_immutable BEFORE UPDATE OF token, creation_request ON tasks
-WHEN NEW.token IS NOT OLD.token OR NEW.creation_request != OLD.creation_request
+CREATE TRIGGER tasks_creation_immutable BEFORE UPDATE OF creation_token, creation_request ON tasks
+WHEN NEW.creation_token IS NOT OLD.creation_token OR NEW.creation_request != OLD.creation_request
 BEGIN SELECT RAISE(ABORT, 'creation_request_immutable'); END;
