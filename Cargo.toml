@@ -5,13 +5,17 @@ edition = "2024"
 rust-version = "1.94"
 description = "A local, transactional todo CLI for humans and agents"
 license = "MIT"
-include = ["src/**", "migrations/**", "build.rs", "Cargo.toml", "Cargo.lock", "README.md", "SPEC.md", "LICENSE"]
+include = ["src/**", "migrations/**", ".sqlx/**", "tests/**", "build.rs", "Cargo.toml", "Cargo.lock", "README.md", "SPEC.md", "LICENSE"]
 
 [dependencies]
+chrono = "0.4"
 directories = "6"
-sqlx = { version = "0.9", default-features = false, features = ["runtime-tokio", "sqlite-bundled", "macros", "migrate"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sqlx = { version = "0.9", default-features = false, features = ["runtime-tokio", "sqlite-bundled", "macros", "migrate", "json"] }
 thiserror = "2"
 tokio = { version = "1", features = ["macros", "rt-multi-thread", "fs", "time"] }
+uuid = { version = "1", features = ["v4"] }
 
 [dev-dependencies]
 tempfile = "3"
