@@ -1,0 +1,17 @@
+[package]
+name = "claw-todo"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.94"
+description = "A local, transactional todo CLI for humans and agents"
+license = "MIT"
+include = ["src/**", "migrations/**", "build.rs", "Cargo.toml", "Cargo.lock", "README.md", "SPEC.md", "LICENSE"]
+
+[dependencies]
+directories = "6"
+sqlx = { version = "0.9", default-features = false, features = ["runtime-tokio", "sqlite-bundled", "macros", "migrate"] }
+thiserror = "2"
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "fs", "time"] }
+
+[dev-dependencies]
+tempfile = "3"
