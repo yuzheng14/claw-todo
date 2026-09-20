@@ -1,0 +1,2 @@
+*.sql text eol=lf
+Cargo.lock linguist-generated=true
