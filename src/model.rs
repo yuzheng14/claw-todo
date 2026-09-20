@@ -55,6 +55,21 @@ pub struct CreateTask {
     pub creation_token: Option<String>,
 }
 
+/// 普通业务字段的局部更新；不修改状态、父级或创建幂等信息。
+#[derive(Debug, Clone, Default)]
+pub struct EditTask {
+    /// 新标题，不能全为空白；`None` 表示不修改。
+    pub title: Option<String>,
+    /// 新分类，只能是 `personal` 或 `work`；`None` 表示不修改。
+    pub category: Option<String>,
+    /// `None` 不修改，`Some(None)` 清空，`Some(Some(value))` 设置描述。
+    pub description: Option<Option<String>>,
+    /// 三态语义同 `description`；设置的项目名不能全为空白。
+    pub project: Option<Option<String>>,
+    /// `None` 不修改，`Some(vec![])` 清空，否则整体替换；每条引用不能全为空白。
+    pub sources: Option<Vec<String>>,
+}
+
 /// 创建或幂等重试的结果。
 #[derive(Debug, Serialize)]
 pub struct CreateResult {
@@ -64,6 +79,15 @@ pub struct CreateResult {
     pub deduplicated: bool,
 }
 
+/// 普通编辑或追加备注的结果。
+#[derive(Debug, Serialize)]
+pub struct ChangeResult {
+    /// 操作后的当前任务记录。
+    pub task: Task,
+    /// 是否产生修改和历史；无变化的编辑为 `false`，成功追加备注总是 `true`。
+    pub changed: bool,
+}
+
 /// 与业务修改在同一事务中写入的任务历史记录。
 #[derive(Debug, Serialize, Deserialize)]
 pub struct HistoryEntry {
@@ -71,11 +95,11 @@ pub struct HistoryEntry {
     pub id: i64,
     /// 此条历史所属任务的 ID。
     pub task_id: String,
-    /// 事件类型；当前创建流程写入 `created`。
+    /// 事件类型；当前支持 `created`、`edited` 和 `note`。
     pub kind: String,
     /// 事件发生时间，使用 UTC RFC 3339 格式、微秒精度。
     pub at: String,
-    /// 事件内容，结构由 `kind` 决定；`created` 为 `{before: null, after: Task}`，
-    /// 其中 `after` 保存创建时的完整任务快照。
+    /// 事件发生时的完整快照：`created` 为 `{before: null, after: Task}`，
+    /// `edited` 为 `{before: Task, after: Task}`，`note` 在此基础上增加 `body` 正文。
     pub changes: Json<Value>,
 }
