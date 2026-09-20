@@ -1,2 +1,3 @@
 *.sql text eol=lf
 Cargo.lock linguist-generated=true
+.sqlx/** linguist-generated=true

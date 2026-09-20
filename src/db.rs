@@ -3,10 +3,11 @@ use std::{
     time::Duration,
 };
 
-use crate::{AppError, Result};
+use crate::{AppError, Result, Task};
 use sqlx::{
-    SqlitePool,
+    Sqlite, SqliteConnection, SqlitePool, Transaction,
     sqlite::{SqliteConnectOptions, SqliteJournalMode, SqlitePoolOptions},
+    types::Json,
 };
 
 #[derive(Clone)]
@@ -61,6 +62,26 @@ impl Store {
     pub async fn close(&self) {
         self.pool.close().await;
     }
+
+    pub(crate) async fn write(&self) -> Result<Transaction<'static, Sqlite>> {
+        Ok(self.pool.begin_with("BEGIN IMMEDIATE").await?)
+    }
+}
+
+pub(crate) async fn get_task(conn: &mut SqliteConnection, id: &str) -> Result<Task> {
+    sqlx::query_as!(
+        Task,
+        r#"SELECT id, title, description, status, category, project, parent_id,
+        blocked_reason, cancel_reason, sources AS "sources: Json<Vec<String>>",
+        created_at, updated_at, closed_at, creation_token FROM tasks WHERE id = ?"#,
+        id
+    )
+    .fetch_optional(conn)
+    .await?
+    .ok_or_else(|| AppError::NotFound {
+        entity: "task",
+        id: id.to_owned(),
+    })
 }
 
 pub fn default_db_path() -> Result<PathBuf> {

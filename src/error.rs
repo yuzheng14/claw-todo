@@ -4,12 +4,28 @@ pub type Result<T> = std::result::Result<T, AppError>;
 pub enum AppError {
     #[error("Invalid {field}: {message}")]
     InvalidInput { field: String, message: String },
+    #[error("{entity} {id} was not found")]
+    NotFound { entity: &'static str, id: String },
+    #[error(
+        "Creation token {creation_token} is already bound to a different request for task {task_id}"
+    )]
+    CreationTokenConflict {
+        creation_token: String,
+        task_id: String,
+    },
+    #[error("Parent {parent_id} has closed ancestors: {ancestor_ids:?}")]
+    ClosedAncestor {
+        parent_id: String,
+        ancestor_ids: Vec<String>,
+    },
     #[error("Database operation failed: {0}")]
     Database(#[from] sqlx::Error),
     #[error("Database migration failed: {0}")]
     Migration(#[from] sqlx::migrate::MigrateError),
     #[error("File operation failed: {0}")]
     Io(#[from] std::io::Error),
+    #[error("JSON operation failed: {0}")]
+    Json(#[from] serde_json::Error),
 }
 
 impl AppError {
