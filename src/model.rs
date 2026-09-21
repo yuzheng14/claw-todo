@@ -70,6 +70,32 @@ pub struct EditTask {
     pub sources: Option<Vec<String>>,
 }
 
+/// 显式状态操作；已关闭任务必须先重开，才能改为其他状态。
+#[derive(Debug, Clone)]
+pub enum Transition {
+    /// 开始或继续处理，进入 `in_progress`。
+    Start,
+    /// 标记阻塞；已经阻塞时只更新原因，不重复记录状态变化。
+    Block {
+        /// 非空白阻塞原因，保留输入原文。
+        reason: String,
+    },
+    /// 完成任务。
+    Done {
+        /// 是否同时完成全部开放后代；`false` 时有开放后代就拒绝。
+        cascade: bool,
+    },
+    /// 取消任务；已经取消时允许修正或清空原因，保留原关闭时间。
+    Cancel {
+        /// 可选取消原因；提供时不能全为空白，`None` 表示清空原因。
+        reason: Option<String>,
+        /// 是否同时取消全部开放后代；已有关闭后代保持不变。
+        cascade: bool,
+    },
+    /// 只将目标任务重开为 `pending`；全部祖先必须开放，已经 `pending` 时不修改。
+    Reopen,
+}
+
 /// 创建或幂等重试的结果。
 #[derive(Debug, Serialize)]
 pub struct CreateResult {
@@ -88,6 +114,17 @@ pub struct ChangeResult {
     pub changed: bool,
 }
 
+/// 状态操作的结果，包括级联实际修改的任务。
+#[derive(Debug, Serialize)]
+pub struct TransitionResult {
+    /// 操作后目标任务的当前记录，不包含后代记录。
+    pub task: Task,
+    /// 状态或原因是否发生变化；`false` 时不更新时间或新增历史。
+    pub changed: bool,
+    /// 实际修改的任务 ID；目标在前，后代按 ID 排序，无变化时为空。
+    pub affected_task_ids: Vec<String>,
+}
+
 /// 与业务修改在同一事务中写入的任务历史记录。
 #[derive(Debug, Serialize, Deserialize)]
 pub struct HistoryEntry {
@@ -95,11 +132,12 @@ pub struct HistoryEntry {
     pub id: i64,
     /// 此条历史所属任务的 ID。
     pub task_id: String,
-    /// 事件类型；当前支持 `created`、`edited` 和 `note`。
+    /// 事件类型；当前支持 `created`、`edited`、`note` 和 `status_changed`。
     pub kind: String,
     /// 事件发生时间，使用 UTC RFC 3339 格式、微秒精度。
     pub at: String,
     /// 事件发生时的完整快照：`created` 为 `{before: null, after: Task}`，
-    /// `edited` 为 `{before: Task, after: Task}`，`note` 在此基础上增加 `body` 正文。
+    /// `edited`／`status_changed` 为 `{before: Task, after: Task}`；
+    /// `note` 额外包含 `body`，级联后代的状态事件额外包含根任务 ID `cascade_from`。
     pub changes: Json<Value>,
 }

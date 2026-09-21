@@ -18,6 +18,17 @@ pub enum AppError {
         parent_id: String,
         ancestor_ids: Vec<String>,
     },
+    #[error("Task {task_id} cannot transition from {status} to {requested_status}")]
+    InvalidState {
+        task_id: String,
+        status: String,
+        requested_status: &'static str,
+    },
+    #[error("Task {task_id} has open descendants: {blocking_task_ids:?}")]
+    OpenDescendants {
+        task_id: String,
+        blocking_task_ids: Vec<String>,
+    },
     #[error("Task {task_id} cannot become a work task with {channel} reminders: {reminder_ids:?}")]
     ChannelForbidden {
         task_id: String,

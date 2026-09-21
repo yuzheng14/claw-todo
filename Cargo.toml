@@ -14,7 +14,7 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 sqlx = { version = "0.9", default-features = false, features = ["runtime-tokio", "sqlite-bundled", "macros", "migrate", "json"] }
 thiserror = "2"
-tokio = { version = "1", features = ["macros", "rt-multi-thread", "fs", "time"] }
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "fs", "time", "sync"] }
 uuid = { version = "1", features = ["v4"] }
 
 [dev-dependencies]

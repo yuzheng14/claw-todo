@@ -1,8 +1,11 @@
 use chrono::{SecondsFormat, Utc};
-use serde_json::{Value, json};
-use sqlx::{SqliteConnection, types::Json};
+use serde_json::json;
+use sqlx::types::Json;
 
-use crate::{AppError, ChangeResult, EditTask, Result, Store, db::get_task};
+use crate::{
+    AppError, ChangeResult, EditTask, Result, Store,
+    db::{get_task, record},
+};
 
 impl Store {
     /// 编辑普通字段；无实际变化时不更新时间，也不新增历史。
@@ -138,25 +141,5 @@ fn nonempty(field: &str, value: &str) -> Result<()> {
     if value.trim().is_empty() {
         return Err(AppError::invalid(field, "Must not be empty"));
     }
-    Ok(())
-}
-
-async fn record(
-    conn: &mut SqliteConnection,
-    id: &str,
-    kind: &str,
-    at: &str,
-    changes: Value,
-) -> Result<()> {
-    let changes = serde_json::to_string(&changes)?;
-    sqlx::query!(
-        "INSERT INTO history (task_id, kind, at, changes) VALUES (?, ?, ?, ?)",
-        id,
-        kind,
-        at,
-        changes
-    )
-    .execute(conn)
-    .await?;
     Ok(())
 }
