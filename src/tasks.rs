@@ -131,7 +131,10 @@ fn validate(input: &CreateTask) -> Result<()> {
     Ok(())
 }
 
-async fn require_open_ancestors(conn: &mut SqliteConnection, parent_id: &str) -> Result<()> {
+pub(crate) async fn require_open_ancestors(
+    conn: &mut SqliteConnection,
+    parent_id: &str,
+) -> Result<()> {
     let mut current = Some(parent_id.to_owned());
     let mut seen = HashSet::new();
     let mut closed = Vec::new();

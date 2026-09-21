@@ -4,6 +4,7 @@ use std::{
 };
 
 use crate::{AppError, Result, Task};
+use serde_json::Value;
 use sqlx::{
     Sqlite, SqliteConnection, SqlitePool, Transaction,
     sqlite::{SqliteConnectOptions, SqliteJournalMode, SqlitePoolOptions},
@@ -82,6 +83,26 @@ pub(crate) async fn get_task(conn: &mut SqliteConnection, id: &str) -> Result<Ta
         entity: "task",
         id: id.to_owned(),
     })
+}
+
+pub(crate) async fn record(
+    conn: &mut SqliteConnection,
+    id: &str,
+    kind: &str,
+    at: &str,
+    changes: Value,
+) -> Result<()> {
+    let changes = serde_json::to_string(&changes)?;
+    sqlx::query!(
+        "INSERT INTO history (task_id, kind, at, changes) VALUES (?, ?, ?, ?)",
+        id,
+        kind,
+        at,
+        changes
+    )
+    .execute(conn)
+    .await?;
+    Ok(())
 }
 
 pub fn default_db_path() -> Result<PathBuf> {
