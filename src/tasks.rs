@@ -1,11 +1,12 @@
-use std::collections::HashSet;
-
 use chrono::{SecondsFormat, Utc};
 use serde_json::{Value, json};
-use sqlx::{SqliteConnection, types::Json};
+use sqlx::types::Json;
 use uuid::Uuid;
 
-use crate::{AppError, CreateResult, CreateTask, HistoryEntry, Result, Store, Task, db::get_task};
+use crate::{
+    AppError, CreateResult, CreateTask, HistoryEntry, Result, Store, Task, db::get_task,
+    parenting::require_open_ancestors,
+};
 
 impl Store {
     pub async fn create(&self, input: CreateTask) -> Result<CreateResult> {
@@ -127,35 +128,6 @@ fn validate(input: &CreateTask) -> Result<()> {
         if value.is_some_and(|v| v.trim().is_empty()) {
             return Err(AppError::invalid(field, "Must not be empty"));
         }
-    }
-    Ok(())
-}
-
-pub(crate) async fn require_open_ancestors(
-    conn: &mut SqliteConnection,
-    parent_id: &str,
-) -> Result<()> {
-    let mut current = Some(parent_id.to_owned());
-    let mut seen = HashSet::new();
-    let mut closed = Vec::new();
-    while let Some(id) = current {
-        if !seen.insert(id.clone()) {
-            return Err(AppError::invalid(
-                "parent_id",
-                "The existing parent chain contains a cycle",
-            ));
-        }
-        let parent = get_task(conn, &id).await?;
-        if matches!(parent.status.as_str(), "done" | "cancelled") {
-            closed.push(parent.id);
-        }
-        current = parent.parent_id;
-    }
-    if !closed.is_empty() {
-        return Err(AppError::ClosedAncestor {
-            parent_id: parent_id.to_owned(),
-            ancestor_ids: closed,
-        });
     }
     Ok(())
 }

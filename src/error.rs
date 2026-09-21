@@ -18,6 +18,8 @@ pub enum AppError {
         parent_id: String,
         ancestor_ids: Vec<String>,
     },
+    #[error("Setting {parent_id} as the parent of task {task_id} would create a cycle")]
+    CycleDetected { task_id: String, parent_id: String },
     #[error("Task {task_id} cannot transition from {status} to {requested_status}")]
     InvalidState {
         task_id: String,
