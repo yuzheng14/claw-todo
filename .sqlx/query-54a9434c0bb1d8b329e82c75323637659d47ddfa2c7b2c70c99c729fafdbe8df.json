@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO history (task_id, kind, at, changes) VALUES (?, ?, ?, ?)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 4
+    },
+    "nullable": []
+  },
+  "hash": "54a9434c0bb1d8b329e82c75323637659d47ddfa2c7b2c70c99c729fafdbe8df"
+}

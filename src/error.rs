@@ -18,6 +18,12 @@ pub enum AppError {
         parent_id: String,
         ancestor_ids: Vec<String>,
     },
+    #[error("Task {task_id} cannot become a work task with {channel} reminders: {reminder_ids:?}")]
+    ChannelForbidden {
+        task_id: String,
+        channel: &'static str,
+        reminder_ids: Vec<String>,
+    },
     #[error("Database operation failed: {0}")]
     Database(#[from] sqlx::Error),
     #[error("Database migration failed: {0}")]

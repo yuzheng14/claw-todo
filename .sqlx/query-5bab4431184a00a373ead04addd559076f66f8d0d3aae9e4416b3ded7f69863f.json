@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE tasks SET title = ?, category = ?, description = ?, project = ?, sources = ?, updated_at = ? WHERE id = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 7
+    },
+    "nullable": []
+  },
+  "hash": "5bab4431184a00a373ead04addd559076f66f8d0d3aae9e4416b3ded7f69863f"
+}
