@@ -1,7 +1,9 @@
+pub mod cli;
 pub mod db;
 mod edits;
 pub mod error;
 pub mod model;
+mod output;
 mod parenting;
 mod query;
 mod reminders;

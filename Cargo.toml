@@ -9,12 +9,15 @@ include = ["src/**", "migrations/**", ".sqlx/**", "tests/**", "build.rs", "Cargo
 
 [dependencies]
 chrono = "0.4"
+clap = { version = "4", features = ["derive", "env"] }
 directories = "6"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 sqlx = { version = "0.9", default-features = false, features = ["runtime-tokio", "sqlite-bundled", "macros", "migrate", "json"] }
 thiserror = "2"
 tokio = { version = "1", features = ["macros", "rt-multi-thread", "fs", "time", "sync"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 uuid = { version = "1", features = ["v4"] }
 
 [dev-dependencies]

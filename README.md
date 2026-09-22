@@ -1,16 +1,46 @@
 # claw-todo
 
-本地待办 CLI，完整产品语义见 [SPEC.md](SPEC.md)。当前是 **第 7 批：提醒关联**，在前序批次上增加 Rust library 提醒接口；命令行入口将在后续批次接入。
+本地待办 CLI，完整产品语义见 [SPEC.md](SPEC.md)。当前是 **第 8 批：CLI 与 JSON 协议**，把已有业务能力接入非交互命令行；默认人类树状输出将在下一批接入。
 
 ## 本批 review 范围
 
 建议按以下顺序阅读；`Cargo.lock` 和 `.sqlx/` 为生成文件，默认折叠，无需逐行审查。本批不修改第一批的数据库迁移。
 
-1. [提醒模型与操作](src/reminders.rs)：新增、查询、编辑、解除关联及原子历史。
-2. [详情整合](src/query.rs)：同一读取快照包含任务、直接子任务进度和全部提醒。
-3. [验收测试](tests/reminders.rs)：完整快照、无变化、微信限制、并发分类与失败回滚。
+1. [命令与调度](src/cli.rs)：clap derive 参数、业务接口映射、路径选择与帮助处理。
+2. [JSON 与错误](src/output.rs)：统一信封、稳定错误码／上下文和退出码；[入口](src/main.rs) 将日志写到 stderr。
+3. [命令验收](tests/cli.rs)：覆盖全部子命令、错误／帮助 JSON、参数冲突和跨目录共享数据库。
 
-本批不包含命令行、终端渲染或外部提醒 API，不改数据库迁移、依赖或已有任务写接口。
+本批增加 clap、tracing 和 tracing-subscriber，不改迁移或业务写接口。本批业务结果暂时一律输出 JSON，帮助默认文本；下一批只切换非 `--json` 的展示，并补完整使用文档。
+
+## 命令行与 JSON
+
+```sh
+SQLX_OFFLINE=true cargo run --locked -- --help
+SQLX_OFFLINE=true cargo run --locked -- --db /tmp/claw-demo/todos.db create "试用 CLI" --category personal --creation-token demo-001 --json
+SQLX_OFFLINE=true cargo run --locked -- --db /tmp/claw-demo/todos.db list --json
+```
+
+支持 `create`、`edit`、`parent`、`start`、`block`、`done`、`cancel`、`reopen`、`note`、`list`、`show`、`history`；`reminder` 下有 `add`、`list`、`edit`、`fired`、`cancel`、`remove`。每条命令均可用 `--help` 查看参数。`edit` 的 `--clear-description/project/sources` 与对应设置值互斥，父级使用独立 `parent ID --parent NEW_ID` 或 `--clear-parent`，两者必须二选一。
+
+`--db PATH` > `CLAW_TODO_DB` > 用户级默认路径；默认库不随工作目录变化，显式相对路径则相对当前目录。`--db`、`--json` 都是全局参数。无参数、帮助及版本查询不会打开数据库，参数错误也不会执行业务操作。字符串值中的字面 `--json`（如 `--title=--json`），以及 `--` 后的文本，不会被当作 JSON 标志。
+
+JSON 成功为 `{"ok":true,"data":...}`；失败为 `{"ok":false,"error":{"code":"...","message":"...","context":{...}}}`。JSON 模式 stdout 只输出一个结果，日志只写 stderr。帮助／版本分别为 `data.help`／`data.version`。业务结果字段沿用下文 Rust 返回类型；TaskView 展开 Task 字段，提醒与历史列表直接为数组，`show` 为 `{task, progress, reminders}`。可选字段为 null，空集合为 []。
+
+| 退出码 | 错误码 | 上下文 |
+| --- | --- | --- |
+| 0 | 成功 | — |
+| 2 | `INVALID_ARGUMENT` / `INVALID_INPUT` | 参数错误为空；业务校验含 `field` |
+| 3 | `NOT_FOUND` | `entity`, `id` |
+| 4 | `CREATION_TOKEN_CONFLICT` | `creation_token`, `task_id` |
+| 4 | `CLOSED_ANCESTOR` | `parent_id`, `ancestor_ids` |
+| 4 | `CYCLE_DETECTED` | `task_id`, `parent_id` |
+| 4 | `INVALID_STATE` | `task_id`, `status`, `requested_status` |
+| 4 | `OPEN_DESCENDANTS` | `task_id`, `blocking_task_ids` |
+| 4 | `CHANNEL_FORBIDDEN` | `task_id`, `channel`, `reminder_ids` |
+| 5 | `DATABASE_BUSY` | 空，允许有限退避重试 |
+| 1 | `DATABASE_ERROR` / `MIGRATION_ERROR` / `IO_ERROR` / `JSON_ERROR` | 空 |
+
+`message` 用于解释，不保证具体措辞。输出失败时业务可能已经提交；重试创建应保留原始请求和创建令牌，备注／新增提醒不能盲目重复。下游主动关闭管道按正常结束处理，不 panic。
 
 ## 提醒关联
 
