@@ -141,3 +141,72 @@ pub struct HistoryEntry {
     /// `note` 额外包含 `body`，级联后代的状态事件额外包含根任务 ID `cascade_from`。
     pub changes: Json<Value>,
 }
+
+/// 列表筛选；不同字段取交集，同一状态列表内取并集。
+#[derive(Debug, Clone, Default)]
+pub struct ListFilter {
+    /// 未显式筛选状态时，是否连同已关闭任务一起返回。
+    pub all: bool,
+    /// 按 `personal` 或 `work` 精确筛选。
+    pub category: Option<String>,
+    /// 按项目名精确筛选；`None` 不限制项目。
+    pub project: Option<String>,
+    /// 为空时默认只匹配开放状态；非空时优先于 `all`。
+    pub statuses: Vec<String>,
+    /// 标题或描述中的字面子串，使用 Unicode 小写转换后比较，不是正则或 SQL 通配符。
+    pub search: Option<String>,
+}
+
+/// 直接子任务的进度，不统计孙辈，也不把取消计作完成。
+#[derive(Debug, Clone, Default, Serialize, PartialEq)]
+pub struct Progress {
+    /// 已完成的直接子任务数。
+    pub done: usize,
+    /// 已取消的直接子任务数。
+    pub cancelled: usize,
+    /// 全部直接子任务数，不受列表筛选条件影响。
+    pub total: usize,
+}
+
+/// 列表中的任务；JSON 展开任务字段，并附加展示信息。
+#[derive(Debug, Clone, Serialize)]
+pub struct TaskView {
+    /// 当前任务记录。
+    #[serde(flatten)]
+    pub task: Task,
+    /// 是否仅为展示层级补入的祖先，不计入筛选命中数量。
+    pub context_only: bool,
+    /// 未筛选的直接子任务进度。
+    pub progress: Progress,
+}
+
+/// 命中数与全库开放任务数，均来自同一次读取快照。
+#[derive(Debug, Serialize)]
+pub struct ListSummary {
+    /// 匹配筛选的任务数，不包含纯上下文祖先。
+    pub matched: usize,
+    /// 命中任务中的开放任务数。
+    pub matched_open: usize,
+    /// 全库没有父级的开放任务数，不受筛选影响。
+    pub top_level_open: usize,
+    /// 全库所有层级的开放任务数，不受筛选影响。
+    pub total_open: usize,
+}
+
+/// 完整查询结果，无隐式分页或条数限制。
+#[derive(Debug, Serialize)]
+pub struct ListResult {
+    /// 命中任务与必要祖先，按创建时间、ID 升序排列，每个任务只出现一次。
+    pub tasks: Vec<TaskView>,
+    /// 筛选命中数与全库统计。
+    pub summary: ListSummary,
+}
+
+/// 单个任务及其直接子任务进度。
+#[derive(Debug, Serialize)]
+pub struct TaskDetail {
+    /// 任务全部当前字段。
+    pub task: Task,
+    /// 所有直接子任务的进度。
+    pub progress: Progress,
+}
