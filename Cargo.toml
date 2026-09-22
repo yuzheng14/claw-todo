@@ -4,8 +4,9 @@ version = "0.1.0"
 edition = "2024"
 rust-version = "1.94"
 description = "A local, transactional todo CLI for humans and agents"
+repository = "https://github.com/yuzheng14/claw-todo"
 license = "MIT"
-include = ["src/**", "migrations/**", ".sqlx/**", "tests/**", "build.rs", "Cargo.toml", "Cargo.lock", "README.md", "SPEC.md", "LICENSE"]
+include = ["src/**", "migrations/**", ".sqlx/**", "tests/**", "docs/**", "build.rs", "Cargo.toml", "Cargo.lock", "README.md", "SPEC.md", "LICENSE"]
 
 [dependencies]
 chrono = "0.4"

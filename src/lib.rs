@@ -2,6 +2,7 @@ pub mod cli;
 pub mod db;
 mod edits;
 pub mod error;
+mod human;
 pub mod model;
 mod output;
 mod parenting;
