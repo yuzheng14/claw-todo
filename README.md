@@ -1,16 +1,28 @@
 # claw-todo
 
-本地待办 CLI，完整产品语义见 [SPEC.md](SPEC.md)。当前是 **第 6 批：完整查询与树数据**，在前序批次上增加 Rust library 查询接口；命令行入口将在后续批次接入。
+本地待办 CLI，完整产品语义见 [SPEC.md](SPEC.md)。当前是 **第 7 批：提醒关联**，在前序批次上增加 Rust library 提醒接口；命令行入口将在后续批次接入。
 
 ## 本批 review 范围
 
 建议按以下顺序阅读；`Cargo.lock` 和 `.sqlx/` 为生成文件，默认折叠，无需逐行审查。本批不修改第一批的数据库迁移。
 
-1. [查询模型](src/model.rs)：筛选条件、上下文标记、直接子任务进度与统计。
-2. [查询实现](src/query.rs)：完整读取、组合筛选、补齐祖先、稳定排序与详情。
-3. [验收测试](tests/query.rs)：默认开放集、关闭状态、搜索、上下文计数及 1,100 条不截断。
+1. [提醒模型与操作](src/reminders.rs)：新增、查询、编辑、解除关联及原子历史。
+2. [详情整合](src/query.rs)：同一读取快照包含任务、直接子任务进度和全部提醒。
+3. [验收测试](tests/reminders.rs)：完整快照、无变化、微信限制、并发分类与失败回滚。
 
-本批不包含提醒操作、命令行或终端渲染，不改数据库迁移、依赖或已有写接口。
+本批不包含命令行、终端渲染或外部提醒 API，不改数据库迁移、依赖或已有任务写接口。
+
+## 提醒关联
+
+`Store::add_reminder(task_id, AddReminder)` 和 `edit_reminder(id, EditReminder)` 返回 `{ reminder, changed }`；`list_reminders(task_id)` 按本地创建时间、ID 返回全部关联；`remove_reminder(id)` 返回移除前的完整记录。提醒 ID 是本地 UUIDv4，与 `external_id` 不同。一个任务可关联多个提醒；新增不做外部 ID 去重，编辑不能改变所属任务。
+
+计划时间必须是带 `Z` 或明确偏移的 RFC 3339；时区只是非空标签，不负责校验时区数据库、换算或调度。外部 ID、计划时间、时区去首尾空白；渠道去首尾空白并转小写，`wechat`、`weixin`、`wx`、`微信`（含大小写、空格、横线／下划线变体）统一为 `wechat`。状态严格为 `scheduled`、`fired`、`cancelled`、`unknown`。
+
+新增微信关联、把渠道改为微信、把已关联微信的任务改为 `work`，均返回 `ChannelForbidden`，与提醒是否已触发或取消无关。关闭任务仍可管理关联，任务关闭本身不会修改或移除提醒。
+
+新增、实际编辑和解除分别记录 `reminder_added`、`reminder_updated`、`reminder_removed`，历史为 `{ before: Reminder|null, after: Reminder|null }` 完整快照，同时更新所属任务的 `updated_at`；均在同一个 `BEGIN IMMEDIATE` 事务中提交。规范化后无变化时不更新时间或历史。
+
+**外部操作必须由调用方先完成，再更新本地关联。** 外部删除失败时不能先解除本地关联；创建外部微信提醒前应先检查分类。本工具不调用 OpenClaw、不发送／调度提醒，也不把本地状态当成外部操作成功的证明。
 
 ## 列表与详情
 
@@ -18,7 +30,7 @@
 
 结果 `tasks` 按 `created_at, id` 稳定排序，并补齐命中任务的全部祖先。补入的祖先标记 `context_only: true`，不计入 `summary.matched` 或 `matched_open`。`summary.top_level_open` 和 `total_open` 始终是数据库全局的顶层／全部开放数，不受筛选影响。一次全表读取保证筛选、上下文和统计来自同一快照。
 
-每个节点的 `progress` 分别统计全部直接子任务的 `done`、`cancelled` 和 `total`，不受筛选影响，也不把孙辈或取消计为完成。`Store::show(id)` 在同一读事务中返回任务及直接子任务进度。查询不会修改任务、时间或历史。
+每个节点的 `progress` 分别统计全部直接子任务的 `done`、`cancelled` 和 `total`，不受筛选影响，也不把孙辈或取消计为完成。`Store::show(id)` 在同一读事务中返回任务、直接子任务进度及全部提醒关联。查询不会修改任务、时间或历史。
 
 ## 父级操作
 
@@ -66,7 +78,7 @@
 
 编辑和备注都先开启 `BEGIN IMMEDIATE`，再读取当前记录；修改与历史在同一事务提交，失败时一并回滚。已关闭任务可以编辑或追加备注，但状态、关闭时间、父级、创建时间与创建幂等信息均保持不变。不存在的任务返回 `AppError::NotFound`。
 
-改为 `work` 前检查已有全部微信提醒关联，不区分提醒状态；有冲突时返回 `AppError::ChannelForbidden`，包含任务 ID、渠道和按 ID 排序的提醒 ID，不落下部分编辑。此前编辑测试中的关闭状态使用 SQL fixture；提醒操作接口留待后续批次。
+改为 `work` 前检查已有全部微信提醒关联，不区分提醒状态；有冲突时返回 `AppError::ChannelForbidden`，包含任务 ID、渠道和按 ID 排序的提醒 ID，不落下部分编辑。
 
 ## 已有的创建与查询能力
 

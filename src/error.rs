@@ -31,7 +31,7 @@ pub enum AppError {
         task_id: String,
         blocking_task_ids: Vec<String>,
     },
-    #[error("Task {task_id} cannot become a work task with {channel} reminders: {reminder_ids:?}")]
+    #[error("Work task {task_id} cannot have {channel} reminders: {reminder_ids:?}")]
     ChannelForbidden {
         task_id: String,
         channel: &'static str,

@@ -1,0 +1,122 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT id, task_id, external_id, scheduled_at, timezone, channel, status, created_at, updated_at FROM reminders WHERE task_id = ? ORDER BY created_at, id",
+  "describe": {
+    "columns": [
+      {
+        "name": "id",
+        "ordinal": 0,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "reminders",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "name": "task_id",
+        "ordinal": 1,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "reminders",
+            "name": "task_id"
+          }
+        }
+      },
+      {
+        "name": "external_id",
+        "ordinal": 2,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "reminders",
+            "name": "external_id"
+          }
+        }
+      },
+      {
+        "name": "scheduled_at",
+        "ordinal": 3,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "reminders",
+            "name": "scheduled_at"
+          }
+        }
+      },
+      {
+        "name": "timezone",
+        "ordinal": 4,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "reminders",
+            "name": "timezone"
+          }
+        }
+      },
+      {
+        "name": "channel",
+        "ordinal": 5,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "reminders",
+            "name": "channel"
+          }
+        }
+      },
+      {
+        "name": "status",
+        "ordinal": 6,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "reminders",
+            "name": "status"
+          }
+        }
+      },
+      {
+        "name": "created_at",
+        "ordinal": 7,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "reminders",
+            "name": "created_at"
+          }
+        }
+      },
+      {
+        "name": "updated_at",
+        "ordinal": 8,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "reminders",
+            "name": "updated_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "fef8a12bfa7b837bf48a6912def2be80a0f4ce45a67d1ab68d620df58591b9eb"
+}

@@ -132,13 +132,15 @@ pub struct HistoryEntry {
     pub id: i64,
     /// 此条历史所属任务的 ID。
     pub task_id: String,
-    /// 事件类型；当前支持 `created`、`edited`、`note`、`status_changed` 和 `parent_changed`。
+    /// 事件类型：`created`、`edited`、`note`、`status_changed`、`parent_changed`，
+    /// 以及 `reminder_added`、`reminder_updated`、`reminder_removed`。
     pub kind: String,
     /// 事件发生时间，使用 UTC RFC 3339 格式、微秒精度。
     pub at: String,
     /// 事件发生时的完整快照：`created` 为 `{before: null, after: Task}`，
     /// `edited`／`status_changed`／`parent_changed` 为 `{before: Task, after: Task}`；
     /// `note` 额外包含 `body`，级联后代的状态事件额外包含根任务 ID `cascade_from`。
+    /// 提醒事件使用 `{before: Reminder|null, after: Reminder|null}`，新增前／移除后为 null。
     pub changes: Json<Value>,
 }
 
@@ -202,11 +204,13 @@ pub struct ListResult {
     pub summary: ListSummary,
 }
 
-/// 单个任务及其直接子任务进度。
+/// 同一读取快照中的任务、直接子任务进度和全部提醒关联。
 #[derive(Debug, Serialize)]
 pub struct TaskDetail {
     /// 任务全部当前字段。
     pub task: Task,
     /// 所有直接子任务的进度。
     pub progress: Progress,
+    /// 全部状态的提醒关联，按本地创建时间、ID 升序排列。
+    pub reminders: Vec<crate::Reminder>,
 }
