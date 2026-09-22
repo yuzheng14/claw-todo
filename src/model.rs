@@ -105,12 +105,12 @@ pub struct CreateResult {
     pub deduplicated: bool,
 }
 
-/// 普通编辑或追加备注的结果。
+/// 普通编辑、父级调整或追加备注的结果。
 #[derive(Debug, Serialize)]
 pub struct ChangeResult {
     /// 操作后的当前任务记录。
     pub task: Task,
-    /// 是否产生修改和历史；无变化的编辑为 `false`，成功追加备注总是 `true`。
+    /// 是否产生修改和历史；无变化的编辑／父级调整为 `false`，成功追加备注总是 `true`。
     pub changed: bool,
 }
 
@@ -132,12 +132,12 @@ pub struct HistoryEntry {
     pub id: i64,
     /// 此条历史所属任务的 ID。
     pub task_id: String,
-    /// 事件类型；当前支持 `created`、`edited`、`note` 和 `status_changed`。
+    /// 事件类型；当前支持 `created`、`edited`、`note`、`status_changed` 和 `parent_changed`。
     pub kind: String,
     /// 事件发生时间，使用 UTC RFC 3339 格式、微秒精度。
     pub at: String,
     /// 事件发生时的完整快照：`created` 为 `{before: null, after: Task}`，
-    /// `edited`／`status_changed` 为 `{before: Task, after: Task}`；
+    /// `edited`／`status_changed`／`parent_changed` 为 `{before: Task, after: Task}`；
     /// `note` 额外包含 `body`，级联后代的状态事件额外包含根任务 ID `cascade_from`。
     pub changes: Json<Value>,
 }

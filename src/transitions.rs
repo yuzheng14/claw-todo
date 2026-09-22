@@ -5,7 +5,7 @@ use sqlx::{SqliteConnection, types::Json};
 use crate::{
     AppError, Result, Store, Task, Transition, TransitionResult,
     db::{get_task, record},
-    tasks::require_open_ancestors,
+    parenting::require_open_ancestors,
 };
 
 impl Store {

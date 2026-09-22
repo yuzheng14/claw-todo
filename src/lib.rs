@@ -2,6 +2,7 @@ pub mod db;
 mod edits;
 pub mod error;
 pub mod model;
+mod parenting;
 mod tasks;
 mod transitions;
 
