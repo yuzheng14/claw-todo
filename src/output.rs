@@ -41,9 +41,10 @@ impl Response {
 }
 
 pub(crate) fn write_success(response: &Response, as_json: bool) -> Result<()> {
-    let text = match (as_json, response) {
-        (false, Response::Help(text) | Response::Version(text)) => text.clone(),
-        _ => serde_json::to_string(&json!({"ok": true, "data": response.data()?}))?,
+    let text = if as_json {
+        serde_json::to_string(&json!({"ok": true, "data": response.data()?}))?
+    } else {
+        crate::human::render(response)
     };
     let mut stdout = std::io::stdout().lock();
     stdout.write_all(text.as_bytes())?;
@@ -146,9 +147,17 @@ fn write_failure(code: &str, message: &str, context: Value, as_json: bool) -> Re
         writeln!(std::io::stdout().lock(), "{envelope}")?;
     } else {
         let mut stderr = std::io::stderr().lock();
-        writeln!(stderr, "Error [{code}]: {message}")?;
+        writeln!(
+            stderr,
+            "Error [{code}]: {}",
+            crate::human::human_text(message)
+        )?;
         if context != json!({}) {
-            writeln!(stderr, "Context: {context}")?;
+            writeln!(
+                stderr,
+                "Context: {}",
+                crate::human::human_text(&context.to_string())
+            )?;
         }
     }
     Ok(())
