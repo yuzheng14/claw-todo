@@ -4,10 +4,39 @@
 
 ## 安装与快速开始
 
-需要 Rust stable 1.94+ 和平台 C 编译工具链：
+### 预编译二进制
+
+目前只提供 macOS Apple Silicon（Darwin arm64）版本。从 [GitHub Releases](https://github.com/yuzheng14/claw-todo/releases) 选择已发布的版本；以下以 `v0.1.0` 为例，需要 GitHub CLI `gh`：
+
+```sh
+release_tag=v0.1.0
+release_dir=$(mktemp -d)
+gh release download "$release_tag" --repo yuzheng14/claw-todo --dir "$release_dir" \
+  --pattern "claw-todo-$release_tag-darwin-arm64.tar.gz" \
+  --pattern "claw-todo-skill-$release_tag.zip" \
+  --pattern SHA256SUMS
+(
+  cd "$release_dir" &&
+  shasum -a 256 -c SHA256SUMS &&
+  tar -xzf "claw-todo-$release_tag-darwin-arm64.tar.gz" &&
+  mkdir -p "$HOME/.local/bin" &&
+  install -m 755 "claw-todo-$release_tag-darwin-arm64/claw-todo" "$HOME/.local/bin/claw-todo"
+)
+```
+
+将 `~/.local/bin` 加入自己的 `PATH`，再运行 `claw-todo --version`。也可以从 Release 页面下载上述三个附件后校验、解压安装；`SHA256SUMS` 同时覆盖二进制包和 skill 包。当前二进制未做 Apple Developer ID 签名或公证，不应为此全局关闭 Gatekeeper。
+
+### 从源码安装
+
+需要 Rust stable 1.94+ 和平台 C 编译工具链，在仓库目录执行：
 
 ```sh
 SQLX_OFFLINE=true cargo install --path . --locked
+```
+
+### 快速开始
+
+```sh
 claw-todo create "完成 CLI review" --category work --project claw-todo --creation-token review-001
 claw-todo list
 claw-todo list --json
@@ -37,7 +66,9 @@ claw-todo --db /tmp/claw-demo/todos.db list
 - [JSON 契约](skills/claw-todo/references/protocol.md)：按需读取的返回字段、错误码和退出码。
 - [产品规格](SPEC.md)：产品语义与验收约束。
 
-skill 与 CLI 分开安装：先安装上述二进制，再将整个 `skills/claw-todo/` 目录（含 `references/`）安装到所用 Agent 支持的技能目录，由该 Agent 发现并加载。仓库中的入口只是可分发的 skill 源码，单独克隆仓库或执行 `cargo install` 不会自动为所有 Agent 注册技能，也不会改动个人 Agent 配置。缺少 CLI 时 skill 会报告前置条件，不自动安装或另建一份待办。
+skill 与 CLI 共用版本号、分开安装。同一个 Release 提供 `claw-todo-skill-v<版本>.zip`，解压后将整个 `claw-todo/` 目录（含 `SKILL.md`、`references/` 和许可证）安装到所用 Agent 支持的技能目录，由该 Agent 发现并加载。建议使用与 CLI 相同的版本；源码安装则取对应版本的 `skills/claw-todo/`。
+
+单独克隆仓库或执行 `cargo install` 不会自动注册 skill，也不会改动个人 Agent 配置。先确保该 Agent 能执行 `claw-todo`；缺少 CLI 时 skill 会报告前置条件，不自动安装或另建一份待办。当前通过 GitHub Release 分发，不自动发布到 skill registry；后续可按需同步到 ClawHub。
 
 `creation_token` 是创建幂等键，不是认证凭据。历史使用独立自增整数 ID 排序；任务和提醒关联使用 UUIDv4。业务变更与对应历史在同一事务提交。详情及历史保留完整内容，人类输出会转义终端／双向控制字符；JSON 保留字段原值。
 
@@ -69,6 +100,8 @@ SQLX_OFFLINE=true cargo package --locked
 
 macOS 若默认 Xcode 尚未接受许可，但已安装 Command Line Tools，可对构建命令临时设置 `DEVELOPER_DIR=/Library/Developer/CommandLineTools`，不必修改系统全局配置。
 
+维护者发布步骤、手动重跑与附件更新规则见 [Release 维护说明](docs/releases.md)。
+
 ## 增量 review
 
 前五批为存储、创建、编辑、状态流转与父级调整。所有 PR 的合并目标统一为 `main`，不向其他 review 分支合并。每批保留独立、可构建的实现提交：
@@ -78,4 +111,4 @@ macOS 若默认 Xcode 尚未接受许可，但已安装 Command Line Tools，可
 3. [第 8 批：CLI 与 JSON](https://github.com/yuzheng14/claw-todo/pull/8) — `cli.rs`、`output.rs`、`main.rs` 和命令测试。
 4. [第 9 批：人类输出与交付文档](https://github.com/yuzheng14/claw-todo/pull/9) — `human.rs`、人类输出测试及本文档。
 
-前序批次均已进入 main，当前只剩第 9 批待 review；所有 PR 的目标分支始终保持 `main`。
+以上实现批次均已进入 `main`；后续 PR 的目标分支继续保持 `main`。
