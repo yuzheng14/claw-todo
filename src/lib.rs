@@ -4,6 +4,7 @@ pub mod error;
 pub mod model;
 mod parenting;
 mod query;
+mod reminders;
 mod tasks;
 mod transitions;
 
@@ -13,3 +14,4 @@ pub use model::{
     ChangeResult, CreateResult, CreateTask, EditTask, HistoryEntry, ListFilter, ListResult,
     ListSummary, Progress, Task, TaskDetail, TaskView, Transition, TransitionResult,
 };
+pub use reminders::{AddReminder, EditReminder, Reminder, ReminderResult};
