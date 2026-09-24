@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE reminders SET external_id = ?, scheduled_at = ?, timezone = ?, channel = ?, status = ?, updated_at = ? WHERE id = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 7
+    },
+    "nullable": []
+  },
+  "hash": "c15081bc3060aa25289c9e0dd8aae743776a2bf7a3138ff209ac5025688cf246"
+}

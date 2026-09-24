@@ -110,7 +110,7 @@ impl Store {
         Ok(ListResult { tasks, summary })
     }
 
-    /// 在同一读事务中读取任务和直接子任务进度。
+    /// 在同一读事务中读取任务、直接子任务进度和全部提醒。
     pub async fn show(&self, id: &str) -> Result<TaskDetail> {
         let mut tx = self.pool.begin().await?;
         let task = get_task(&mut tx, id).await?;
@@ -128,8 +128,13 @@ impl Store {
                 .count(),
             total: statuses.len(),
         };
+        let reminders = crate::reminders::reminders_for_task(&mut tx, id).await?;
         tx.commit().await?;
-        Ok(TaskDetail { task, progress })
+        Ok(TaskDetail {
+            task,
+            progress,
+            reminders,
+        })
     }
 }
 
