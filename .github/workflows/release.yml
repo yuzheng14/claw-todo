@@ -1,0 +1,195 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Existing tag to publish (must match Cargo.toml, e.g. v0.1.0)'
+        required: true
+        type: string
+      replace_assets:
+        description: 'Replace changed same-name assets (prefer a new version instead)'
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ inputs.tag || github.ref_name }}
+  cancel-in-progress: false
+
+env:
+  RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
+  RUST_TOOLCHAIN: '1.98.0'
+  CARGO_TERM_COLOR: always
+  SQLX_OFFLINE: 'true'
+  MACOSX_DEPLOYMENT_TARGET: '11.0'
+
+jobs:
+  build:
+    runs-on: macos-15 # Native Apple Silicon, not an Intel cross-build.
+    timeout-minutes: 30
+    outputs:
+      commit: ${{ steps.source.outputs.commit }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: refs/tags/${{ inputs.tag || github.ref_name }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Verify release source
+        id: source
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?(\+[0-9A-Za-z.-]+)?$ ]]
+          test "$(git rev-parse "refs/tags/$RELEASE_TAG^{commit}")" = "$(git rev-parse HEAD)"
+          git merge-base --is-ancestor HEAD origin/main
+          echo "commit=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+          test "$(uname -m)" = arm64
+      - name: Set up Rust
+        run: |
+          rustup toolchain install "$RUST_TOOLCHAIN" --profile minimal --component rustfmt --component clippy --target aarch64-apple-darwin
+          rustup default "$RUST_TOOLCHAIN"
+      - name: Check release version
+        run: |
+          version=$(cargo metadata --locked --no-deps --format-version 1 | jq -er '.packages[] | select(.name == "claw-todo") | .version')
+          test "$RELEASE_TAG" = "v$version"
+      - name: Check and build
+        run: |
+          cargo fmt --all -- --check
+          cargo clippy --locked --all-targets --target aarch64-apple-darwin -- -D warnings
+          cargo test --locked --target aarch64-apple-darwin
+          cargo build --locked --release --target aarch64-apple-darwin
+      - name: Package CLI and skill
+        shell: bash
+        run: |
+          set -euo pipefail
+          export TZ=UTC COPYFILE_DISABLE=1
+          staging=$(mktemp -d)
+          bundle="claw-todo-$RELEASE_TAG-darwin-arm64"
+          mkdir dist "$staging/$bundle" "$staging/skill" "$staging/skill/claw-todo"
+          dist_dir="$PWD/dist"
+          install -m 755 target/aarch64-apple-darwin/release/claw-todo "$staging/$bundle/claw-todo"
+          cp LICENSE "$staging/$bundle/LICENSE"
+          git archive HEAD:skills/claw-todo | tar -xf - -C "$staging/skill/claw-todo"
+          cp LICENSE "$staging/skill/claw-todo/LICENSE"
+          # Normalize archive metadata so unchanged inputs can be re-published without conflicts.
+          find "$staging" -exec touch -t 198001010000 {} +
+          tar --format=ustar --options='gzip:!timestamp' --uid=0 --gid=0 --uname=root --gname=root \
+            -czf "dist/$bundle.tar.gz" -C "$staging" "$bundle"
+          (cd "$staging/skill" && find claw-todo -type f | LC_ALL=C sort \
+            | zip -X -q "$dist_dir/claw-todo-skill-$RELEASE_TAG.zip" -@)
+          (cd dist && shasum -a 256 "$bundle.tar.gz" "claw-todo-skill-$RELEASE_TAG.zip" > SHA256SUMS)
+      - name: Smoke test the unpacked binary
+        shell: bash
+        run: |
+          set -euo pipefail
+          (cd dist && shasum -a 256 -c SHA256SUMS)
+          smoke_dir=$(mktemp -d)
+          tar -xzf "dist/claw-todo-$RELEASE_TAG-darwin-arm64.tar.gz" -C "$smoke_dir"
+          binary="$smoke_dir/claw-todo-$RELEASE_TAG-darwin-arm64/claw-todo"
+          test "$(lipo -archs "$binary")" = arm64
+          test "$("$binary" --version)" = "claw-todo ${RELEASE_TAG#v}"
+          "$binary" --help
+          "$binary" --db "$smoke_dir/todos.db" --json create 'Release smoke test' --category personal \
+            | jq -e '.ok == true and .data.task.title == "Release smoke test"'
+          "$binary" --db "$smoke_dir/todos.db" --json list \
+            | jq -e '.ok == true and .data.summary.matched == 1'
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: release-assets
+          path: dist/*
+          if-no-files-found: error
+          retention-days: 7
+          overwrite: true # Re-running this workflow may replace its temporary artifact.
+
+  publish:
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ needs.build.outputs.commit }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Check tag has not moved since the build
+        env:
+          BUILD_COMMIT: ${{ needs.build.outputs.commit }}
+        run: |
+          test "$(git rev-parse "refs/tags/$RELEASE_TAG^{commit}")" = "$BUILD_COMMIT"
+          git merge-base --is-ancestor HEAD origin/main
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: release-assets
+          path: dist
+      - name: Create or update GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          REPLACE_ASSETS: ${{ inputs.replace_assets || false }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd dist
+          sha256sum -c SHA256SUMS
+          assets=("claw-todo-$RELEASE_TAG-darwin-arm64.tar.gz" "claw-todo-skill-$RELEASE_TAG.zip" SHA256SUMS)
+          # List releases includes drafts; API failures must not be treated as an absent release.
+          release_metadata() {
+            gh api --paginate --slurp "repos/$GH_REPO/releases?per_page=100" \
+              | jq --arg tag "$RELEASE_TAG" '[.[][] | select(.tag_name == $tag)] |
+                  if length > 1 then error("duplicate release tags") else .[0] end'
+          }
+          release=$(release_metadata)
+          if [[ "$release" == null ]]; then
+            options=(--repo "$GH_REPO")
+            if [[ "${RELEASE_TAG%%+*}" == *-* ]]; then options+=(--prerelease --latest=false); fi
+            gh release create "$RELEASE_TAG" --verify-tag --draft --generate-notes \
+              --title "claw-todo $RELEASE_TAG" "${options[@]}"
+            release=$(release_metadata)
+          fi
+          jq -e '.id and (.draft | type == "boolean")' <<< "$release" > /dev/null
+
+          previous=$(mktemp -d)
+          uploads=()
+          # Compare all assets before changing any; SHA256SUMS is uploaded last.
+          for name in "${assets[@]}"; do
+            state=$(jq -r --arg name "$name" '.assets[] | select(.name == $name) | .state' <<< "$release")
+            if [[ -n "$state" ]]; then
+              if [[ "$state" == uploaded ]]; then
+                gh release download "$RELEASE_TAG" --pattern "$name" --dir "$previous"
+                if cmp -s "$name" "$previous/$name"; then continue; fi
+              fi
+              if [[ "$REPLACE_ASSETS" != true ]]; then
+                echo "::error::Asset $name differs; publish a new version or enable replace_assets."
+                exit 1
+              fi
+            fi
+            if jq -e '.immutable == true' <<< "$release" > /dev/null; then
+              echo '::error::Immutable release cannot be changed; publish a new version.'
+              exit 1
+            fi
+            uploads+=("$name")
+          done
+          options=(--repo "$GH_REPO")
+          if [[ "$REPLACE_ASSETS" == true ]]; then options+=(--clobber); fi
+          if ((${#uploads[@]})); then
+            for name in "${uploads[@]}"; do
+              gh release upload "$RELEASE_TAG" "$name" "${options[@]}"
+            done
+          fi
+
+          verified=$(mktemp -d)
+          for name in "${assets[@]}"; do
+            gh release download "$RELEASE_TAG" --pattern "$name" --dir "$verified"
+            cmp "$name" "$verified/$name"
+          done
+          if jq -e '.draft == true' <<< "$release" > /dev/null; then
+            gh release edit "$RELEASE_TAG" --draft=false
+          fi
