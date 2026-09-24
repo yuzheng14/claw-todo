@@ -30,11 +30,14 @@ claw-todo --db /tmp/claw-demo/todos.db list
 - 全命令支持 `--json`，成功／失败信封、稳定错误码和退出码；日志只写 stderr。
 - 维护本地提醒关联及历史，工作任务禁止微信。外部操作必须由调用方先完成；CLI 不发送、调度或自动同步提醒。
 
-## 文档
+## Agent skill 与文档
 
-- [使用说明](docs/USAGE.md)：全部命令、树与统计、数据库路径、提醒协作与安装。
-- [Agent 调用约定](docs/AGENTS.md)：JSON 字段、错误码、退出码、重试和人工迁移流程。
+- [claw-todo skill](skills/claw-todo/SKILL.md)：Agent 的触发入口、操作决策、幂等重试和提醒协作规则。
+- [命令参考](skills/claw-todo/references/commands.md)：命令、筛选、统计与数据库路径，人类也可直接查阅。
+- [JSON 契约](skills/claw-todo/references/protocol.md)：按需读取的返回字段、错误码和退出码。
 - [产品规格](SPEC.md)：产品语义与验收约束。
+
+skill 与 CLI 分开安装：先安装上述二进制，再将整个 `skills/claw-todo/` 目录（含 `references/`）安装到所用 Agent 支持的技能目录，由该 Agent 发现并加载。仓库中的入口只是可分发的 skill 源码，单独克隆仓库或执行 `cargo install` 不会自动为所有 Agent 注册技能，也不会改动个人 Agent 配置。缺少 CLI 时 skill 会报告前置条件，不自动安装或另建一份待办。
 
 `creation_token` 是创建幂等键，不是认证凭据。历史使用独立自增整数 ID 排序；任务和提醒关联使用 UUIDv4。业务变更与对应历史在同一事务提交。详情及历史保留完整内容，人类输出会转义终端／双向控制字符；JSON 保留字段原值。
 
@@ -75,4 +78,4 @@ macOS 若默认 Xcode 尚未接受许可，但已安装 Command Line Tools，可
 3. [第 8 批：CLI 与 JSON](https://github.com/yuzheng14/claw-todo/pull/8) — `cli.rs`、`output.rs`、`main.rs` 和命令测试。
 4. [第 9 批：人类输出与交付文档](https://github.com/yuzheng14/claw-todo/pull/9) — `human.rs`、人类输出测试及本文档。
 
-第 6 批已进入 main，剩余按 #10 → #8 → #9 顺序合并。前置批次尚未进入 main 时，后续 PR 的 diff 会暂时包含依赖内容，可按独立提交 review。前一批 squash/rebase 合并后同步后继分支，消除已审内容的重复展示；所有 PR 的目标分支始终保持 `main`。
+前序批次均已进入 main，当前只剩第 9 批待 review；所有 PR 的目标分支始终保持 `main`。
