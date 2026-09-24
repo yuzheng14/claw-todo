@@ -42,11 +42,7 @@ CLI 与 skill 共用版本号，但可分别安装。skill 的单一源码是 `s
 
 首次创建 Release 时，流水线先创建草稿、上传完整附件，再发布并生成 release notes；预发布版本标记为 prerelease。已有 Release 的说明等人工编辑内容会保留。
 
-发布辅助脚本的本地测试需要 Python 3.11+，不调用真实发布接口：
-
-```sh
-python3 -m unittest discover -s scripts -p 'test_*.py' -v
-```
+发布步骤直接写在工作流中：`cargo metadata` 配合 `jq` 核对版本，`git archive`、`tar`、`zip` 打包，`shasum`／`sha256sum` 校验，`gh` 创建和更新 Release。不需要额外的脚本运行时或依赖安装。
 
 ## 重跑与更新附件
 

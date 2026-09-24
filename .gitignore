@@ -1,6 +1,5 @@
 /target/
 /dist/
-__pycache__/
 *.db
 *.db-shm
 *.db-wal
